@@ -22,7 +22,7 @@ def solve_cutting_stock_integer(data_list, raw_len):
         row[i] = 1
         patterns.append(row)
 
-    max_iter = 50
+    max_iter = 300
     for _ in range(max_iter):
         master_prob = pulp.LpProblem("Master_LP", pulp.LpMinimize)
         x = [pulp.LpVariable(f"x_{j}", lowBound=0) for j in range(len(patterns))]
