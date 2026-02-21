@@ -272,10 +272,14 @@ def clear_table_dialog():
     with col_d1:
         if st.button("Evet, Sil", type="primary", width='stretch'):
             st.session_state.df = pd.DataFrame([{"Uzunluk": 0, "Adet": 0}])
+            st.session_state.run_calculation = False
             st.rerun()
     with col_d2:
         if st.button("İptal", width='stretch'):
             st.rerun()
+
+def reset_calculation():
+    st.session_state.run_calculation = False
 
 with main_col1:
     st.subheader("Kesilecek Parçalar")
@@ -323,6 +327,7 @@ with main_col1:
                     if all(col in df_new.columns for col in required_cols):
                         if st.button("Verileri Tabloya Yükle"):
                             st.session_state.df = df_new[required_cols]
+                            st.session_state.run_calculation = False
                             st.success("Veriler başarıyla yüklendi!")
                             st.rerun()
                     else:
@@ -337,6 +342,7 @@ with main_col1:
         if new_len > 0 and new_qty > 0:
             new_row = pd.DataFrame([{"Uzunluk": new_len, "Adet": new_qty}])
             st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
+            st.session_state.run_calculation = False
         
     col_add1, col_add2, col_add3 = st.columns([2, 2, 1])
     with col_add1:
@@ -374,6 +380,7 @@ with main_col1:
     
     if not edited_df.equals(st.session_state.df):
         st.session_state.df = edited_df
+        st.session_state.run_calculation = False
 
     total_pieces = 0
     total_types = 0
@@ -383,17 +390,24 @@ with main_col1:
         st.info(f"Toplam Parça Sayısı: **{total_pieces}** | Farklı Parça Türü: **{total_types}**")
 
     if total_pieces > 0:
-        col_btn1, col_btn2 = st.columns(2)
+        col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 1])
         with col_btn1:
-            if st.button("Hesaplamayı Başlat", type="primary", width='stretch'):
+            if st.button("Hızlı Hesapla (First Fit)", type="primary", width='stretch'):
                 st.session_state.run_calculation = True
+                st.session_state.run_advanced = False
+        with col_btn2:
+            if st.button("Gelişmiş Optimizasyon", type="secondary", width='stretch'):
+                st.session_state.run_calculation = True
+                st.session_state.run_advanced = True
     else:
         st.warning("⚠️ Lütfen listeye en az bir parça ekleyiniz.")
-        col_btn1, col_btn2 = st.columns(2)
+        col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 1])
         with col_btn1:
-           st.button("Hesaplamayı Başlat", type="primary", width='stretch', disabled=True)
+           st.button("Hızlı Hesapla", type="primary", width='stretch', disabled=True)
+        with col_btn2:
+           st.button("Gelişmiş Optimizasyon", type="secondary", width='stretch', disabled=True)
     
-    with col_btn2:
+    with col_btn3:
         if st.button("Tabloyu Temizle", type="secondary", width='stretch'):
             clear_table_dialog()
 
@@ -401,11 +415,11 @@ with main_col2:
     st.subheader("Profil Bilgileri")
     input_col1, input_col2, input_col3 = st.columns(3)
     with input_col1:
-        raw_length = st.number_input("Profil Uzunluğu (mm)", min_value=10, value=6000)
+        raw_length = st.number_input("Profil Uzunluğu (mm)", min_value=10, value=6000, on_change=reset_calculation)
     with input_col2:
-        raw_qty = st.number_input("Profil Adedi", min_value=1, value=100)
+        raw_qty = st.number_input("Profil Adedi", min_value=1, value=100, on_change=reset_calculation)
     with input_col3:
-        waste_limit = st.number_input("Kesim Fire Payı (mm)", min_value=0, value=0)
+        waste_limit = st.number_input("Kesim Fire Payı (mm)", min_value=0, value=0, on_change=reset_calculation)
     
     st.divider()
 
@@ -428,52 +442,71 @@ with main_col2:
             st.stop()
 
         eff_len = raw_length - waste_limit
-        
-        t1 = time.time()
-        res1_total, res1_details = solve_cutting_stock_integer(parca_listesi, eff_len)
-        d1 = time.time() - t1
+        total_needed_len = sum(p[0] * p[1] for p in parca_listesi)
         
         t2 = time.time()
         res2_total, res2_details = solve_first_fit_decreasing(parca_listesi, eff_len)
         d2 = time.time() - t2
         
-        total_needed_len = sum(p[0] * p[1] for p in parca_listesi)
-        
-        used1 = res1_total * eff_len
-        waste1 = used1 - total_needed_len
-        waste1_p = (waste1 / used1) * 100 if used1 > 0 else 0
-        
         used2 = res2_total * eff_len
         waste2 = used2 - total_needed_len
         waste2_p = (waste2 / used2) * 100 if used2 > 0 else 0
         
-        col_cmp1, col_cmp2 = st.columns(2)
+        run_advanced = st.session_state.get("run_advanced", False)
         
-        with col_cmp1:
-            st.info("###### 1. Yöntem: Gelişmiş Optimizasyon (Pulp)")
-            st.metric("Gereken Profil", f"{res1_total} Adet", delta=None)
-            st.metric("Fire Oranı", f"%{waste1_p:.2f}", delta_color="inverse")
-            st.caption(f"Hesaplama Süresi: {d1:.4f} sn")
+        if run_advanced:
+            t1 = time.time()
+            res1_total, res1_details = solve_cutting_stock_integer(parca_listesi, eff_len)
+            d1 = time.time() - t1
             
-            with st.expander("Detaylar (Yöntem 1)", expanded=True):
-                df_res1 = pd.DataFrame(res1_details)
-                if not df_res1.empty:
-                    df_res1['Fire (mm)'] = df_res1['waste']
-                    st.dataframe(
-                        df_res1[['count', 'pattern_str', 'Fire (mm)']].rename(
-                            columns={'count': 'Adet', 'pattern_str': 'Kesim Şablonu'}
-                        ),
-                        width='stretch',
-                        hide_index=True
-                    )
+            used1 = res1_total * eff_len
+            waste1 = used1 - total_needed_len
+            waste1_p = (waste1 / used1) * 100 if used1 > 0 else 0
+            
+            col_cmp1, col_cmp2 = st.columns(2)
+            
+            with col_cmp1:
+                st.info("###### 1. Yöntem: Gelişmiş Optimizasyon (Pulp)")
+                st.metric("Gereken Profil", f"{res1_total} Adet", delta=None)
+                st.metric("Fire Oranı", f"%{waste1_p:.2f}", delta_color="inverse")
+                st.caption(f"Hesaplama Süresi: {d1:.4f} sn")
+                
+                with st.expander("Detaylar (Yöntem 1)", expanded=True):
+                    df_res1 = pd.DataFrame(res1_details)
+                    if not df_res1.empty:
+                        df_res1['Fire (mm)'] = df_res1['waste']
+                        st.dataframe(
+                            df_res1[['count', 'pattern_str', 'Fire (mm)']].rename(
+                                columns={'count': 'Adet', 'pattern_str': 'Kesim Şablonu'}
+                            ),
+                            width='stretch',
+                            hide_index=True
+                        )
 
-        with col_cmp2:
-            st.warning("###### 2. Yöntem: Hızlı Yerleştirme (First Fit)")
-            st.metric("Gereken Profil", f"{res2_total} Adet", delta=f"{res2_total - res1_total} Fark" if res2_total != res1_total else "Eşit", delta_color="inverse")
-            st.metric("Fire Oranı", f"%{waste2_p:.2f}", delta=f"{waste2_p - waste1_p:.2f}% Fark" if waste2_p != waste1_p else None, delta_color="inverse")
+            with col_cmp2:
+                st.warning("###### 2. Yöntem: Hızlı Yerleştirme (First Fit)")
+                st.metric("Gereken Profil", f"{res2_total} Adet", delta=f"{res2_total - res1_total} Fark" if res2_total != res1_total else "Eşit", delta_color="inverse")
+                st.metric("Fire Oranı", f"%{waste2_p:.2f}", delta=f"{waste2_p - waste1_p:.2f}% Fark" if waste2_p != waste1_p else None, delta_color="inverse")
+                st.caption(f"Hesaplama Süresi: {d2:.4f} sn")
+
+                with st.expander("Detaylar (Yöntem 2)"):
+                    df_res2 = pd.DataFrame(res2_details)
+                    if not df_res2.empty:
+                        df_res2['Fire (mm)'] = df_res2['waste']
+                        st.dataframe(
+                            df_res2[['count', 'pattern_str', 'Fire (mm)']].rename(
+                                columns={'count': 'Adet', 'pattern_str': 'Kesim Şablonu'}
+                            ),
+                            width='stretch',
+                            hide_index=True
+                        )
+        else:
+            st.warning("###### Hızlı Yerleştirme (First Fit)")
+            st.metric("Gereken Profil", f"{res2_total} Adet", delta=None)
+            st.metric("Fire Oranı", f"%{waste2_p:.2f}", delta=None, delta_color="inverse")
             st.caption(f"Hesaplama Süresi: {d2:.4f} sn")
 
-            with st.expander("Detaylar (Yöntem 2)"):
+            with st.expander("Detaylar (Hızlı Yerleştirme)", expanded=True):
                 df_res2 = pd.DataFrame(res2_details)
                 if not df_res2.empty:
                     df_res2['Fire (mm)'] = df_res2['waste']
@@ -492,26 +525,37 @@ with main_col2:
         
         st.info(f"Kullanılan Profil: {raw_length} mm | Stok: {raw_qty} adet | Fire Payı: {waste_limit} mm")
 
-        p_col1, p_col2 = st.columns(2)
-        
-        with p_col1:
-            pdf_buffer_1 = create_visual_pdf(res1_details, raw_length, raw_qty, waste_limit, res1_total)
-            st.download_button(
-                label="📄 Yöntem 1 (Optimal) PDF İndir",
-                data=pdf_buffer_1,
-                file_name="kesim_plani_yontem1.pdf",
-                mime="application/pdf",
-                type="primary",
-                width='stretch'
-            )
-        
-        with p_col2:
+        if run_advanced:
+            p_col1, p_col2 = st.columns(2)
+            
+            with p_col1:
+                pdf_buffer_1 = create_visual_pdf(res1_details, raw_length, raw_qty, waste_limit, res1_total)
+                st.download_button(
+                    label="📄 Yöntem 1 (Optimal) PDF İndir",
+                    data=pdf_buffer_1,
+                    file_name="kesim_plani_yontem1.pdf",
+                    mime="application/pdf",
+                    type="primary",
+                    width='stretch'
+                )
+            
+            with p_col2:
+                pdf_buffer_2 = create_visual_pdf(res2_details, raw_length, raw_qty, waste_limit, res2_total)
+                st.download_button(
+                    label="📄 Yöntem 2 (Hızlı) PDF İndir",
+                    data=pdf_buffer_2,
+                    file_name="kesim_plani_yontem2.pdf",
+                    mime="application/pdf",
+                    type="secondary",
+                    width='stretch'
+                )
+        else:
             pdf_buffer_2 = create_visual_pdf(res2_details, raw_length, raw_qty, waste_limit, res2_total)
             st.download_button(
-                label="📄 Yöntem 2 (Hızlı) PDF İndir",
+                label="📄 Hızlı Yerleştirme PDF İndir",
                 data=pdf_buffer_2,
-                file_name="kesim_plani_yontem2.pdf",
+                file_name="kesim_plani_hizli.pdf",
                 mime="application/pdf",
-                type="secondary",
+                type="primary",
                 width='stretch'
             )
