@@ -174,7 +174,7 @@ def solve_first_fit_decreasing(data_list, raw_len, kerf=0):
         
     return len(bins), details
 
-def create_visual_pdf(details, r_len, r_qty, waste, res1_total, project_title=""):
+def create_visual_pdf(details, r_len, waste, res1_total, project_title="", parca_listesi=None):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -188,13 +188,49 @@ def create_visual_pdf(details, r_len, r_qty, waste, res1_total, project_title=""
     c.drawCentredString(width/2, height - 25*mm, title_text)
     
     c.setFont(FONT_REGULAR, 12)
-    info_text = t("profile_info_pdf", r_len, r_qty, res1_total, waste)
+    info_text = t("profile_info_pdf", r_len, res1_total, waste)
     c.drawCentredString(width/2, height - 32*mm, info_text)
     
     c.setStrokeColor(colors.grey)
     c.line(15*mm, height - 40*mm, width - 15*mm, height - 40*mm)
     
-    y_pos = height - 65*mm
+    y_pos = height - 48*mm
+    
+    if parca_listesi:
+        summary_title = "Kesim Özeti:" if st.session_state.lang == "🇹🇷 Türkçe" else ("Cutting Summary:" if st.session_state.lang == "🇬🇧 English" else "Сводка резки:")
+        c.setFont(FONT_BOLD, 12)
+        c.drawString(15*mm, y_pos, summary_title)
+        y_pos -= 6*mm
+        
+        c.setFont(FONT_REGULAR, 10)
+        col1_x = 15*mm
+        col2_x = 105*mm
+        current_col = 1
+        
+        for p in parca_listesi:
+            p_len = p[0]
+            p_qty = p[1]
+            p_desc = p[2] if len(p) > 2 else ""
+            desc_str = f" ({p_desc})" if p_desc else ""
+            line_text = f"• {p_len}mm{desc_str} : {p_qty} Adet / Pcs"
+            
+            if current_col == 1:
+                c.drawString(col1_x, y_pos, line_text)
+                current_col = 2
+            else:
+                c.drawString(col2_x, y_pos, line_text)
+                current_col = 1
+                y_pos -= 5*mm
+                
+        if current_col == 2:
+            y_pos -= 5*mm
+            
+        c.setStrokeColor(colors.grey)
+        c.line(15*mm, y_pos - 2*mm, width - 15*mm, y_pos - 2*mm)
+        y_pos -= 15*mm
+    else:
+        y_pos = height - 65*mm
+        
     bar_height = 11*mm
     draw_width = width - 30*mm
     scale_factor = draw_width / r_len
@@ -507,11 +543,9 @@ with main_col2:
     project_title = st.text_input(col_proj_label, key="project_title", on_change=reset_calculation)
     st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
 
-    input_col1, input_col2, input_col3 = st.columns(3)
+    input_col1, input_col3 = st.columns(2)
     with input_col1:
         raw_length = st.number_input(t("profile_len"), min_value=10, value=6000, on_change=reset_calculation)
-    with input_col2:
-        raw_qty = st.number_input(t("profile_qty"), min_value=1, value=100, on_change=reset_calculation)
     with input_col3:
         waste_limit = st.number_input(t("waste_limit"), min_value=0, value=0, on_change=reset_calculation)
     
@@ -622,7 +656,7 @@ with main_col2:
         
         st.success(t("calc_done", duration))
         
-        st.info(t("used_prof_info", raw_length, raw_qty, waste_limit))
+        st.info(t("used_prof_info", raw_length, waste_limit))
 
         project_title_val = st.session_state.get("project_title", "")
         
@@ -636,7 +670,7 @@ with main_col2:
             p_col1, p_col2 = st.columns(2)
             
             with p_col1:
-                pdf_buffer_1 = create_visual_pdf(res1_details, raw_length, raw_qty, waste_limit, res1_total, project_title_val)
+                pdf_buffer_1 = create_visual_pdf(res1_details, raw_length, waste_limit, res1_total, project_title_val, parca_listesi)
                 st.download_button(
                     label=t("pdf_m1"),
                     data=pdf_buffer_1,
@@ -647,7 +681,7 @@ with main_col2:
                 )
             
             with p_col2:
-                pdf_buffer_2 = create_visual_pdf(res2_details, raw_length, raw_qty, waste_limit, res2_total, project_title_val)
+                pdf_buffer_2 = create_visual_pdf(res2_details, raw_length, waste_limit, res2_total, project_title_val, parca_listesi)
                 st.download_button(
                     label=t("pdf_m2"),
                     data=pdf_buffer_2,
@@ -657,7 +691,7 @@ with main_col2:
                     width='stretch'
                 )
         else:
-            pdf_buffer_2 = create_visual_pdf(res2_details, raw_length, raw_qty, waste_limit, res2_total, project_title_val)
+            pdf_buffer_2 = create_visual_pdf(res2_details, raw_length, waste_limit, res2_total, project_title_val, parca_listesi)
             st.download_button(
                 label=t("pdf_quick"),
                 data=pdf_buffer_2,
