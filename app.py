@@ -503,7 +503,7 @@ with main_col1:
 
 with main_col2:
     st.subheader(t("profile_details"))
-    col_proj_label = "Kesim / Profil Başlığı (Örn: F60.208)" if st.session_state.lang == "🇹🇷 Türkçe" else ("Cut / Profile Title (e.g. F60.208)" if st.session_state.lang == "🇬🇧 English" else "Название профиля (напр. F60.208)")
+    col_proj_label = "Kesim / Profil Başlığı" if st.session_state.lang == "🇹🇷 Türkçe" else ("Cut / Profile Title" if st.session_state.lang == "🇬🇧 English" else "Название профиля")
     project_title = st.text_input(col_proj_label, key="project_title", on_change=reset_calculation)
     st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
 
