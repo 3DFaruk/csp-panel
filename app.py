@@ -176,7 +176,7 @@ def create_visual_pdf(details, r_len, r_qty, waste, res1_total):
     c.drawCentredString(width/2, height - 25*mm, t("cut_list"))
     
     c.setFont(FONT_REGULAR, 12)
-    info_text = t("profile_info_pdf", r_len, r_qty, res1_total, waste)
+    info_text = t("profile_info_pdf", f"{r_len:g}", r_qty, res1_total, f"{waste:g}")
     c.drawCentredString(width/2, height - 32*mm, info_text)
     
     c.setStrokeColor(colors.grey)
@@ -246,7 +246,7 @@ def create_visual_pdf(details, r_len, r_qty, waste, res1_total):
                 try:
                     adet_part, boy_part = p.split('x ')
                     p_count = int(adet_part)
-                    p_len = int(boy_part.replace('mm', ''))
+                    p_len = float(boy_part.replace('mm', ''))
                     
                     for _ in range(p_count):
                         part_w = p_len * scale_factor
@@ -274,7 +274,7 @@ def create_visual_pdf(details, r_len, r_qty, waste, res1_total):
                                 text_y = y_pos + (bar_height / 2) + 6.1*mm
                             small_text_toggle += 1
                         
-                        c.drawCentredString(text_x, text_y, str(p_len))
+                        c.drawCentredString(text_x, text_y, f"{p_len:g}")
                         current_x += part_w
                 except:
                     pass
@@ -293,7 +293,7 @@ def create_visual_pdf(details, r_len, r_qty, waste, res1_total):
                 
                 c.setFillColor(colors.black)
                 c.setFont(FONT_REGULAR, 8)
-                c.drawString(current_x + 1.5*mm, y_pos + bar_height + 2*mm, t("waste_pdf", waste_val))
+                c.drawString(current_x + 1.5*mm, y_pos + bar_height + 2*mm, t("waste_pdf", f"{waste_val:g}"))
 
         y_pos -= 25*mm
     
@@ -317,7 +317,7 @@ def clear_table_dialog():
     col_d1, col_d2 = st.columns(2)
     with col_d1:
         if st.button(t("yes_clear"), type="primary", width='stretch'):
-            st.session_state.df = pd.DataFrame([{"Uzunluk": 0, "Adet": 0}])
+            st.session_state.df = pd.DataFrame([{"Uzunluk": 0.0, "Adet": 0}])
             st.session_state.run_calculation = False
             st.rerun()
     with col_d2:
@@ -382,7 +382,7 @@ with main_col1:
                     st.error(f"{t('error')} {e}")
 
     def add_item():
-        new_len = st.session_state.get("add_len", 0)
+        new_len = st.session_state.get("add_len", 0.0)
         new_qty = st.session_state.get("add_qty", 0)
         
         if new_len > 0 and new_qty > 0:
@@ -392,7 +392,7 @@ with main_col1:
         
     col_add1, col_add2, col_add3 = st.columns([2, 2, 1])
     with col_add1:
-        st.number_input(t("part_len"), min_value=10, key="add_len")
+        st.number_input(t("part_len"), min_value=10.0, step=0.1, format="%.2f", key="add_len")
     with col_add2:
         st.number_input(t("qty"), min_value=1, value=1, key="add_qty")
     with col_add3:
@@ -402,8 +402,9 @@ with main_col1:
     column_config = {
         "Uzunluk": st.column_config.NumberColumn(
             label=t("len_col"),
-            min_value=10, 
-            format="%d",
+            min_value=10.0, 
+            step=0.1,
+            format="%.2f",
             width="medium"
         ),
         "Adet": st.column_config.NumberColumn(
@@ -461,11 +462,11 @@ with main_col2:
     st.subheader(t("profile_details"))
     input_col1, input_col2, input_col3 = st.columns(3)
     with input_col1:
-        raw_length = st.number_input(t("profile_len"), min_value=10, value=6000, on_change=reset_calculation)
+        raw_length = st.number_input(t("profile_len"), min_value=10.0, value=6000.0, step=0.1, format="%.2f", on_change=reset_calculation)
     with input_col2:
         raw_qty = st.number_input(t("profile_qty"), min_value=1, value=100, on_change=reset_calculation)
     with input_col3:
-        waste_limit = st.number_input(t("waste_limit"), min_value=0, value=0, on_change=reset_calculation)
+        waste_limit = st.number_input(t("waste_limit"), min_value=0.0, value=0.0, step=0.1, format="%.2f", on_change=reset_calculation)
     
     st.divider()
 
@@ -476,7 +477,7 @@ with main_col2:
         parca_listesi = []
         for index, row in edited_df.iterrows():
             if row['Uzunluk'] and row['Adet']:
-                uzunluk = int(row['Uzunluk'])
+                uzunluk = int(round(float(row['Uzunluk']) * 100))
                 adet = int(row['Adet'])
 
                 parca_listesi.append([uzunluk,adet])
@@ -487,11 +488,30 @@ with main_col2:
             st.error(t("empty_list"))
             st.stop()
 
-        eff_len = raw_length - waste_limit
+        eff_len = int(round((float(raw_length) - float(waste_limit)) * 100))
         total_needed_len = sum(p[0] * p[1] for p in parca_listesi)
         
         t2 = time.time()
         res2_total, res2_details = solve_first_fit_decreasing(parca_listesi, eff_len)
+        
+        def unscale_details(details_list):
+            for item in details_list:
+                item['waste'] = item['waste'] / 100.0
+                item['used_len'] = item['used_len'] / 100.0
+                if 'pattern_str' in item and item['pattern_str']:
+                    parts = item['pattern_str'].split(' + ')
+                    new_parts = []
+                    for pp in parts:
+                        try:
+                            adet_str, boy_str = pp.split('x ')
+                            boy_val = int(boy_str.replace('mm', '')) / 100.0
+                            new_parts.append(f"{adet_str}x {boy_val:g}mm")
+                        except:
+                            new_parts.append(pp)
+                    item['pattern_str'] = " + ".join(new_parts)
+            return details_list
+            
+        res2_details = unscale_details(res2_details)
         d2 = time.time() - t2
         
         used2 = res2_total * eff_len
@@ -503,6 +523,7 @@ with main_col2:
         if run_advanced:
             t1 = time.time()
             res1_total, res1_details = solve_cutting_stock_integer(parca_listesi, eff_len)
+            res1_details = unscale_details(res1_details)
             d1 = time.time() - t1
             
             used1 = res1_total * eff_len
@@ -569,7 +590,7 @@ with main_col2:
         
         st.success(t("calc_done", duration))
         
-        st.info(t("used_prof_info", raw_length, raw_qty, waste_limit))
+        st.info(t("used_prof_info", f"{raw_length:g}", raw_qty, f"{waste_limit:g}"))
 
         if run_advanced:
             p_col1, p_col2 = st.columns(2)
