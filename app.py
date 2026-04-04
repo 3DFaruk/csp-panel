@@ -196,40 +196,40 @@ def create_visual_pdf(details, r_len, waste, res1_total, project_title="", parca
     
     y_pos = height - 48*mm
     
-    if parca_listesi:
-        summary_title = "Kesim Özeti:" if st.session_state.lang == "🇹🇷 Türkçe" else ("Cutting Summary:" if st.session_state.lang == "🇬🇧 English" else "Сводка резки:")
-        c.setFont(FONT_BOLD, 12)
-        c.drawString(15*mm, y_pos, summary_title)
-        y_pos -= 6*mm
+    # if parca_listesi:
+    #     summary_title = "Kesim Özeti:" if st.session_state.lang == "🇹🇷 Türkçe" else ("Cutting Summary:" if st.session_state.lang == "🇬🇧 English" else "Сводка резки:")
+    #     c.setFont(FONT_BOLD, 12)
+    #     c.drawString(15*mm, y_pos, summary_title)
+    #     y_pos -= 6*mm
         
-        c.setFont(FONT_REGULAR, 10)
-        col1_x = 15*mm
-        col2_x = 105*mm
-        current_col = 1
+    #     c.setFont(FONT_REGULAR, 10)
+    #     col1_x = 15*mm
+    #     col2_x = 105*mm
+    #     current_col = 1
         
-        for p in parca_listesi:
-            p_len = p[0]
-            p_qty = p[1]
-            p_desc = p[2] if len(p) > 2 else ""
-            desc_str = f" ({p_desc})" if p_desc else ""
-            line_text = f"• {p_len}mm{desc_str} : {p_qty} Adet / Pcs"
+    #     for p in parca_listesi:
+    #         p_len = p[0]
+    #         p_qty = p[1]
+    #         p_desc = p[2] if len(p) > 2 else ""
+    #         desc_str = f" ({p_desc})" if p_desc else ""
+    #         line_text = f"• {p_len}mm{desc_str} : {p_qty} Adet / Pcs"
             
-            if current_col == 1:
-                c.drawString(col1_x, y_pos, line_text)
-                current_col = 2
-            else:
-                c.drawString(col2_x, y_pos, line_text)
-                current_col = 1
-                y_pos -= 5*mm
+    #         if current_col == 1:
+    #             c.drawString(col1_x, y_pos, line_text)
+    #             current_col = 2
+    #         else:
+    #             c.drawString(col2_x, y_pos, line_text)
+    #             current_col = 1
+    #             y_pos -= 5*mm
                 
-        if current_col == 2:
-            y_pos -= 5*mm
+    #     if current_col == 2:
+    #         y_pos -= 5*mm
             
-        c.setStrokeColor(colors.grey)
-        c.line(15*mm, y_pos - 2*mm, width - 15*mm, y_pos - 2*mm)
-        y_pos -= 15*mm
-    else:
-        y_pos = height - 65*mm
+    #     c.setStrokeColor(colors.grey)
+    #     c.line(15*mm, y_pos - 2*mm, width - 15*mm, y_pos - 2*mm)
+    #     y_pos -= 15*mm
+    # else:
+    y_pos = height - 65*mm
         
     bar_height = 11*mm
     draw_width = width - 30*mm
