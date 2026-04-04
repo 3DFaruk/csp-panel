@@ -625,6 +625,12 @@ with main_col2:
         st.info(t("used_prof_info", raw_length, raw_qty, waste_limit))
 
         project_title_val = st.session_state.get("project_title", "")
+        
+        import re
+        safe_title = re.sub(r'[\\/*?:"<>|]', "", project_title_val).strip()
+        # Boşlukları alt tireye çevirmek temiz durur
+        safe_title = safe_title.replace(" ", "_")
+        f_prefix = f"{safe_title}_" if safe_title else "kesim_plani_"
 
         if run_advanced:
             p_col1, p_col2 = st.columns(2)
@@ -634,7 +640,7 @@ with main_col2:
                 st.download_button(
                     label=t("pdf_m1"),
                     data=pdf_buffer_1,
-                    file_name="kesim_plani_yontem1.pdf",
+                    file_name=f"{f_prefix}1.pdf",
                     mime="application/pdf",
                     type="primary",
                     width='stretch'
@@ -645,7 +651,7 @@ with main_col2:
                 st.download_button(
                     label=t("pdf_m2"),
                     data=pdf_buffer_2,
-                    file_name="kesim_plani_yontem2.pdf",
+                    file_name=f"{f_prefix}2.pdf",
                     mime="application/pdf",
                     type="secondary",
                     width='stretch'
@@ -655,7 +661,7 @@ with main_col2:
             st.download_button(
                 label=t("pdf_quick"),
                 data=pdf_buffer_2,
-                file_name="kesim_plani_hizli.pdf",
+                file_name=f"{f_prefix}hizli.pdf",
                 mime="application/pdf",
                 type="primary",
                 width='stretch'
