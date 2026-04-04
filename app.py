@@ -385,7 +385,7 @@ def clear_table_dialog():
     col_d1, col_d2 = st.columns(2)
     with col_d1:
         if st.button(t("yes_clear"), type="primary", width='stretch'):
-            st.session_state.df = pd.DataFrame([{"Uzunluk": 0, "Adet": 0, "Açıklama": ""}])
+            st.session_state.df = pd.DataFrame(columns=["Uzunluk", "Adet", "Açıklama"])
             st.session_state.run_calculation = False
             st.rerun()
     with col_d2:
